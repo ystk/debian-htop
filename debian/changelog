@@ -1,3 +1,85 @@
+htop (1.0.1-1) unstable; urgency=low
+
+  * New upstream release.
+    - Don't crash when trying to kill already finished process.
+      (Closes: #652563, 657675)
+
+ -- Eugene V. Lyubimkin <jackyf@debian.org>  Sun, 19 Feb 2012 10:24:46 +0200
+
+htop (1.0-1) unstable; urgency=low
+
+  * New upstream release.
+    - Don't die after a terminal resize. (Closes: #464852)
+    - Don't abort when a number of processes are removed from the list at
+      once. (Closes: #541417)
+    - Fixed the inconsistency in the documentation about "[" and "]" keys.
+      (Closes: #610329)
+  * debian/patches:
+    - 100-fix-cgroups-crash.patch: deleted, upstream fixed it in a different
+      way.
+    - 600-openvz-veid-on-kernels-gt-2.6.18.patch: ported to new upstream
+      version.
+    - 700-ltrace-support.patch: ported to new upstream version.
+    - 700-ltrace-support.patch: ltrace hotkey is 'L', not 'l'.
+  * debian/control:
+    - Add libhwloc-dev to Build-Depends on non-linux architectures.
+    - Add libncursesw5-dev to Build-Depends, enabling unicode support.
+  * debian/rules:
+    - Enable native affinity functions on linux architectures and use hwloc
+      library everywhere else.
+  * debian/copyright:
+    - Updated upstream copyright years.
+
+ -- Eugene V. Lyubimkin <jackyf@debian.org>  Sat, 26 Nov 2011 15:58:33 +0200
+
+htop (0.9-4) unstable; urgency=low
+
+  * debian/rules:
+    - Added 'build-arch' and 'build-indep' targets as suggested by Lintian.
+  * debian/patches:
+    - New patch 100-fix-cgroups-crash.patch fixing a crash when htop receives
+      an unexpected input from a cgroups file. (Closes: #628040)
+
+ -- Eugene V. Lyubimkin <jackyf@debian.org>  Wed, 21 Sep 2011 21:17:17 +0300
+
+htop (0.9-3) unstable; urgency=low
+
+  * debian/rules:
+    - Enable cgroups support. (Closes: #627545)
+  * debian/README.source:
+    - added with standard instructions how to use quilt.
+  * debian/control:
+    - Fixed spelling as suggested by lintian.
+    - Bumped Standards-Version to 3.9.2, no changes needed.
+
+ -- Eugene V. Lyubimkin <jackyf@debian.org>  Sun, 22 May 2011 12:05:09 +0300
+
+htop (0.9-2) unstable; urgency=low
+
+  * Upload to unstable.
+
+ -- Eugene V. Lyubimkin <jackyf@debian.org>  Sun, 13 Feb 2011 10:41:53 +0200
+
+htop (0.9-1) experimental; urgency=low
+
+  * New upstream release. (Closes: #610229)
+    - Fixed by-process IO stats in some cases. (Closes: #526070)
+    - Do not display nan% as CPU load sometimes. (Closes: #590535)
+  * debian/patches:
+    - 600-openvz-veid-on-kernels-gt-2.6.18.patch: ported to new upstream
+      version.
+    - 700-ltrace-support.patch: refreshed.
+  * debian/control:
+    - Bumped Standards-Version to 3.9.1, no changes needed.
+    - Updated my mail address.
+    - Removed 'DM-Upload-Allowed' flag as not needed anymore.
+  * debian/copyright:
+    - Updated author copyright years.
+  * debian/watch:
+    - Removed 'uupdate' option, not needed for my workflow.
+
+ -- Eugene V. Lyubimkin <jackyf@debian.org>  Sun, 16 Jan 2011 19:36:07 +0200
+
 htop (0.8.3-1) unstable; urgency=low
 
   * New upstream release:
