@@ -1,20 +1,25 @@
 /*
-  htop
-  (C) 2004-2006 Hisham H. Muhammad
-  Released under the GNU GPL, see the COPYING file
-  in the source distribution for its full text.
+htop - BatteryMeter.c
+(C) 2004-2011 Hisham H. Muhammad
+Released under the GNU GPL, see the COPYING file
+in the source distribution for its full text.
 
-  This "Meter" written by Ian P. Hands (iphands@gmail.com, ihands@redhat.com).
+This meter written by Ian P. Hands (iphands@gmail.com, ihands@redhat.com).
 */
 
 #include "BatteryMeter.h"
-#include "Meter.h"
+
 #include "ProcessList.h"
 #include "CRT.h"
 #include "String.h"
-#include "debug.h"
+
+#include <string.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <unistd.h>
 
 /*{
+#include "Meter.h"
 
 typedef enum ACPresence_ {
    AC_ABSENT,
@@ -28,14 +33,14 @@ int BatteryMeter_attributes[] = {
    BATTERY
 };
 
-static unsigned long int parseUevent(FILE * file, char *key) {
+static unsigned long int parseUevent(FILE * file, const char *key) {
    char line[100];
    unsigned long int dValue = 0;
 
    while (fgets(line, sizeof line, file)) {
       if (strncmp(line, key, strlen(key)) == 0) {
          char *value;
-         value = strtok(line, "=");
+         strtok(line, "=");
          value = strtok(NULL, "=");
          dValue = atoi(value);
          break;
@@ -45,17 +50,11 @@ static unsigned long int parseUevent(FILE * file, char *key) {
 }
 
 static unsigned long int parseBatInfo(const char *fileName, const unsigned short int lineNum, const unsigned short int wordNum) {
-   const DIR *batteryDir;
-   const struct dirent *dirEntries;
-
    const char batteryPath[] = PROCDIR "/acpi/battery/";
-   batteryDir = opendir(batteryPath);
-
-   if (batteryDir == NULL) {
+   DIR* batteryDir = opendir(batteryPath);
+   if (!batteryDir)
       return 0;
-   }
 
-   char *entryName;
    typedef struct listLbl {
       char *content;
       struct listLbl *next;
@@ -68,8 +67,8 @@ static unsigned long int parseBatInfo(const char *fileName, const unsigned short
       Some of this is based off of code found in kismet (they claim it came from gkrellm).
       Written for multi battery use...
     */
-   for (dirEntries = readdir((DIR *) batteryDir); dirEntries; dirEntries = readdir((DIR *) batteryDir)) {
-      entryName = (char *) dirEntries->d_name;
+   for (const struct dirent* dirEntries = readdir((DIR *) batteryDir); dirEntries; dirEntries = readdir((DIR *) batteryDir)) {
+      char* entryName = (char *) dirEntries->d_name;
 
       if (strncmp(entryName, "BAT", 3))
          continue;
@@ -89,6 +88,7 @@ static unsigned long int parseBatInfo(const char *fileName, const unsigned short
       snprintf((char *) infoPath, sizeof infoPath, "%s%s/%s", batteryPath, newEntry->content, fileName);
 
       if ((file = fopen(infoPath, "r")) == NULL) {
+         closedir(batteryDir);
          return 0;
       }
 
@@ -107,7 +107,7 @@ static unsigned long int parseBatInfo(const char *fileName, const unsigned short
 
    free(myList);
    free(newEntry);
-   closedir((DIR *) batteryDir);
+   closedir(batteryDir);
    return total;
 }
 
@@ -116,23 +116,16 @@ static ACPresence chkIsOnline() {
    ACPresence isOn = AC_ERROR;
 
    if (access(PROCDIR "/acpi/ac_adapter", F_OK) == 0) {
-      const struct dirent *dirEntries;
-      char *power_supplyPath = PROCDIR "/acpi/ac_adapter";
+      const char *power_supplyPath = PROCDIR "/acpi/ac_adapter";
       DIR *power_supplyDir = opendir(power_supplyPath);
-      char *entryName;
-
-      if (!power_supplyDir) {
-         closedir(power_supplyDir);
+      if (!power_supplyDir)
          return AC_ERROR;
-      }
 
-      for (dirEntries = readdir((DIR *) power_supplyDir); dirEntries; dirEntries = readdir((DIR *) power_supplyDir)) {
-         entryName = (char *) dirEntries->d_name;
+      for (const struct dirent *dirEntries = readdir((DIR *) power_supplyDir); dirEntries; dirEntries = readdir((DIR *) power_supplyDir)) {
+         char* entryName = (char *) dirEntries->d_name;
 
-         if (strncmp(entryName, "A", 1)) {
+         if (entryName[0] != 'A')
             continue;
-         }
-
 
          char statePath[50];
          snprintf((char *) statePath, sizeof statePath, "%s/%s/state", power_supplyPath, entryName);
@@ -171,7 +164,7 @@ static ACPresence chkIsOnline() {
 
    } else {
 
-      char *power_supplyPath = "/sys/class/power_supply";
+      const char *power_supplyPath = "/sys/class/power_supply";
 
       if (access("/sys/class/power_supply", F_OK) == 0) {
          const struct dirent *dirEntries;
@@ -235,20 +228,15 @@ static double getProcBatData() {
       return 0;
 
    double percent = totalFull > 0 ? ((double) totalRemain * 100) / (double) totalFull : 0;
-
    return percent;
 }
 
 static double getSysBatData() {
    const struct dirent *dirEntries;
-   char *power_supplyPath = "/sys/class/power_supply/";
+   const char *power_supplyPath = "/sys/class/power_supply/";
    DIR *power_supplyDir = opendir(power_supplyPath);
-
-
-   if (!power_supplyDir) {
-      closedir(power_supplyDir);
+   if (!power_supplyDir)
       return 0;
-   }
 
    char *entryName;
 
@@ -272,8 +260,29 @@ static double getSysBatData() {
          return 0;
       }
 
-      totalFull += parseUevent(file, "POWER_SUPPLY_ENERGY_FULL=");
-      totalRemain += parseUevent(file, "POWER_SUPPLY_ENERGY_NOW=");
+      if ((totalFull += parseUevent(file, "POWER_SUPPLY_ENERGY_FULL="))) {
+         totalRemain += parseUevent(file, "POWER_SUPPLY_ENERGY_NOW=");
+      } else {
+         //reset file pointer
+         if (fseek(file, 0, SEEK_SET) < 0) {
+            closedir(power_supplyDir);
+            fclose(file);
+            return 0;
+         }
+      }
+
+      //Some systems have it as CHARGE instead of ENERGY.
+      if ((totalFull += parseUevent(file, "POWER_SUPPLY_CHARGE_FULL="))) {
+         totalRemain += parseUevent(file, "POWER_SUPPLY_CHARGE_NOW=");
+      } else {
+        //reset file pointer
+         if (fseek(file, 0, SEEK_SET) < 0) {
+            closedir(power_supplyDir);
+            fclose(file);
+            return 0;
+         }
+      }
+
       fclose(file);
    }
 
@@ -284,6 +293,7 @@ static double getSysBatData() {
 
 static void BatteryMeter_setValues(Meter * this, char *buffer, int len) {
    double percent = getProcBatData();
+
    if (percent == 0) {
       percent = getSysBatData();
       if (percent == 0) {
@@ -294,7 +304,7 @@ static void BatteryMeter_setValues(Meter * this, char *buffer, int len) {
 
    this->values[0] = percent;
 
-   char *onAcText, *onBatteryText, *unknownText;
+   const char *onAcText, *onBatteryText, *unknownText;
 
    unknownText = "%.1f%%";
    if (this->mode == TEXT_METERMODE) {

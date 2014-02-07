@@ -1,28 +1,32 @@
 /*
-htop
-(C) 2004-2006 Hisham H. Muhammad
+htop - UptimeMeter.c
+(C) 2004-2011 Hisham H. Muhammad
 Released under the GNU GPL, see the COPYING file
 in the source distribution for its full text.
 */
 
 #include "UptimeMeter.h"
-#include "Meter.h"
 
 #include "ProcessList.h"
-
 #include "CRT.h"
 
-#include "debug.h"
+#include <math.h>
+
+/*{
+#include "Meter.h"
+}*/
 
 int UptimeMeter_attributes[] = {
    UPTIME
 };
 
 static void UptimeMeter_setValues(Meter* this, char* buffer, int len) {
-   double uptime;
+   double uptime = 0;
    FILE* fd = fopen(PROCDIR "/uptime", "r");
-   fscanf(fd, "%lf", &uptime);
-   fclose(fd);
+   if (fd) {
+      fscanf(fd, "%64lf", &uptime);
+      fclose(fd);
+   }
    int totalseconds = (int) ceil(uptime);
    int seconds = totalseconds % 60;
    int minutes = (totalseconds/60) % 60;
