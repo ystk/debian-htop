@@ -14,7 +14,6 @@ in the source distribution for its full text.
 #include "UsersTable.h"
 #include "Panel.h"
 #include "Process.h"
-#include <sys/types.h>
 
 #ifndef PROCDIR
 #define PROCDIR "/proc"
@@ -51,12 +50,6 @@ typedef enum TreeStr_ {
    TREE_STR_COUNT
 } TreeStr;
 
-typedef enum TreeType_ {
-   TREE_TYPE_AUTO,
-   TREE_TYPE_ASCII,
-   TREE_TYPE_UTF8,
-} TreeType;
-
 typedef struct CPUData_ {
    unsigned long long int totalTime;
    unsigned long long int userTime;
@@ -86,6 +79,7 @@ typedef struct CPUData_ {
 } CPUData;
 
 typedef struct ProcessList_ {
+   const char **treeStr;
    Vector* processes;
    Vector* processes2;
    Hashtable* processTable;
@@ -93,10 +87,9 @@ typedef struct ProcessList_ {
 
    Panel* panel;
    int following;
-   bool userOnly;
    uid_t userId;
-   bool filtering;
    const char* incFilter;
+   Hashtable* pidWhiteList;
 
    int cpuCount;
    int totalTasks;
@@ -120,6 +113,7 @@ typedef struct ProcessList_ {
    unsigned long long int usedSwap;
    unsigned long long int freeSwap;
 
+   int flags;
    ProcessField* fields;
    ProcessField sortKey;
    int direction;
@@ -135,7 +129,9 @@ typedef struct ProcessList_ {
    bool highlightThreads;
    bool detailedCPUTime;
    bool countCPUsFromZero;
-   const char **treeStr;
+   bool updateProcessNames;
+   bool accountGuestInCPUMeter;
+   bool userOnly;
 
 } ProcessList;
 
@@ -144,7 +140,7 @@ extern const char *ProcessList_treeStrAscii[TREE_STR_COUNT];
 
 extern const char *ProcessList_treeStrUtf8[TREE_STR_COUNT];
 
-ProcessList* ProcessList_new(UsersTable* usersTable);
+ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidWhiteList);
 
 void ProcessList_delete(ProcessList* this);
 
@@ -176,6 +172,10 @@ void ProcessList_sort(ProcessList* this);
 
 #endif
 
+#ifdef HAVE_OOM
+
+#endif
+
 
 void ProcessList_scan(ProcessList* this);
 
@@ -183,6 +183,6 @@ ProcessField ProcessList_keyAt(ProcessList* this, int at);
 
 void ProcessList_expandTree(ProcessList* this);
 
-void ProcessList_rebuildPanel(ProcessList* this, bool flags, int following, bool userOnly, uid_t userId, bool filtering, const char* incFilter);
+void ProcessList_rebuildPanel(ProcessList* this, bool flags, int following, bool userOnly, uid_t userId, const char* incFilter);
 
 #endif
